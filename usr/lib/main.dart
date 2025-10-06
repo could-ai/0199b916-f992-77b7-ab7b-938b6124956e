@@ -1,120 +1,158 @@
+import 'dart:math';
+import 'package:flame/components.dart';
+import 'package:flame/game.dart';
+import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() {
-  runApp(const MyApp());
+  // The GameWidget is the Flutter widget that hosts the Flame game.
+  runApp(GameWidget(game: EgoShooterGame()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+// The main game class, extending FlameGame and incorporating input mixins.
+class EgoShooterGame extends FlameGame
+    with HasKeyboardHandlerComponents, MouseMovementDetector, TapDetector {
+  late Player player;
+  Vector2 mousePosition = Vector2.zero();
 
-  // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+  Future<void> onLoad() async {
+    await super.onLoad();
+    // Set a dark grey background for the game world.
+    camera.backdrop = const Color(0xFF222222);
+    
+    // Create and add the player to the game.
+    player = Player();
+    add(player);
+  }
+
+  // Stores the current mouse position to be used for player aiming.
+  @override
+  void onMouseMove(PointerHoverInfo info) {
+    mousePosition = info.eventPosition.game;
+  }
+
+  // Handles shooting when the user clicks.
+  @override
+  void onTapDown(TapDownInfo info) {
+    super.onTapDown(info);
+    // Create a new bullet instance when the screen is tapped.
+    final bullet = Bullet(
+      position: player.position.clone(),
+      // The bullet's direction is from the player towards the mouse cursor.
+      direction: (mousePosition - player.position).normalized(),
     );
+    add(bullet);
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+// The Player component.
+class Player extends PositionComponent with KeyboardHandler {
+  static const double speed = 200.0;
+  final Paint paint = Paint()..color = Colors.white;
+  Vector2 velocity = Vector2.zero();
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  Player() {
+    size = Vector2(40.0, 40.0);
+    anchor = Anchor.center;
+  }
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+  // Center the player on the screen when the game is resized.
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
+  void onGameResize(Vector2 gameSize) {
+    super.onGameResize(gameSize);
+    position = gameSize / 2;
+  }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  // Renders the player as a triangle to indicate its direction.
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    final path = Path()
+      ..moveTo(size.x / 2, 0)
+      ..lineTo(size.x, size.y)
+      ..lineTo(0, size.y)
+      ..close();
+    canvas.drawPath(path, paint);
   }
 
   @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text('$_counter', style: Theme.of(context).textTheme.headlineMedium),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+  void update(double dt) {
+    super.update(dt);
+    // Update the player's position based on its velocity.
+    position += velocity * dt;
+
+    // Rotate the player to face the mouse cursor.
+    final game = findGame()! as EgoShooterGame;
+    final direction = game.mousePosition - position;
+    if (direction.length > 0) {
+      // We subtract pi/2 because the triangle is pointing upwards.
+      angle = atan2(direction.y, direction.x) - pi / 2;
+    }
+  }
+
+  // Handles keyboard input for player movement (WASD).
+  @override
+  bool onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
+    Vector2 newVelocity = Vector2.zero();
+
+    if (keysPressed.contains(LogicalKeyboardKey.keyW)) {
+      newVelocity.y = -1;
+    }
+    if (keysPressed.contains(LogicalKeyboardKey.keyS)) {
+      newVelocity.y = 1;
+    }
+    if (keysPressed.contains(LogicalKeyboardKey.keyA)) {
+      newVelocity.x = -1;
+    }
+    if (keysPressed.contains(LogicalKeyboardKey.keyD)) {
+      newVelocity.x = 1;
+    }
+
+    // Normalize to prevent faster diagonal movement.
+    if (newVelocity.length > 0) {
+      newVelocity.normalize();
+    }
+    
+    velocity = newVelocity * speed;
+    
+    return true;
+  }
+}
+
+// The Bullet component.
+class Bullet extends PositionComponent {
+  static const double speed = 400.0;
+  final Vector2 direction;
+  final Paint paint = Paint()..color = Colors.yellow;
+
+  Bullet({required Vector2 position, required this.direction}) {
+    this.position = position;
+    size = Vector2.all(10.0);
+    anchor = Anchor.center;
+  }
+
+  // Renders the bullet as a small yellow circle.
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    canvas.drawCircle(Offset.zero, size.x / 2, paint);
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    // Move the bullet in its direction.
+    position += direction * speed * dt;
+
+    // Remove the bullet if it goes off-screen to save resources.
+    final game = findGame()!;
+    if (position.x < 0 ||
+        position.x > game.size.x ||
+        position.y < 0 ||
+        position.y > game.size.y) {
+      removeFromParent();
+    }
   }
 }
