@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flame/components.dart';
+import 'package:flame/events.dart';
 import 'package:flame/game.dart';
-import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -12,15 +12,16 @@ void main() {
 
 // The main game class, extending FlameGame and incorporating input mixins.
 class EgoShooterGame extends FlameGame
-    with HasKeyboardHandlerComponents, MouseMovementDetector, TapDetector {
+    with HasKeyboardHandlerComponents, PointerMoveCallbacks, TapCallbacks {
   late Player player;
   Vector2 mousePosition = Vector2.zero();
 
   @override
+  Color backgroundColor() => const Color(0xFF222222);
+
+  @override
   Future<void> onLoad() async {
     await super.onLoad();
-    // Set a dark grey background for the game world.
-    camera.backdrop = const Color(0xFF222222);
     
     // Create and add the player to the game.
     player = Player();
@@ -29,14 +30,14 @@ class EgoShooterGame extends FlameGame
 
   // Stores the current mouse position to be used for player aiming.
   @override
-  void onMouseMove(PointerHoverInfo info) {
-    mousePosition = info.eventPosition.game;
+  void onPointerMove(PointerMoveEvent event) {
+    mousePosition = event.localPosition;
   }
 
   // Handles shooting when the user clicks.
   @override
-  void onTapDown(TapDownInfo info) {
-    super.onTapDown(info);
+  void onTapDown(TapDownEvent event) {
+    super.onTapDown(event);
     // Create a new bullet instance when the screen is tapped.
     final bullet = Bullet(
       position: player.position.clone(),
